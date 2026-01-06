@@ -1,0 +1,44 @@
+name: Check for New Prog Messages
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-prog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Compile Java code with external libraries
+        run: |
+          mkdir -p out
+          javac -cp "lib/*" -d out ForumNotifier.java
+
+      - name: Run Java Program
+        run: |
+          java -cp "out:lib/*" ForumNotifier
+        env:
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+
+      - name: Commit last.txt and threads.txt if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add last.txt threads.txt
+          git diff --cached --quiet || git commit -m "Update state files"
+          git push origin main
