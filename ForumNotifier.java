@@ -19,7 +19,7 @@ public class ForumNotifier {
     private static final String LAST_MESSAGE_FILE = "last.txt";
     private static final String THREADS_FILE = "threads.txt";
     private static final int PAGES_TO_SCAN = 3;
-    private static final int MAX_STORED_MESSAGES = 200;
+    private static final int MAX_STORED_MESSAGES = 5000;
 
     static class ThreadConfig {
         String title;
