@@ -202,7 +202,7 @@ public class ForumNotifier {
         }
     }
 
-    /* ===================== NTFTY – תוספת ===================== */
+    /* ===================== NTFTY – תוספת (משודרג) ===================== */
 
     private static void sendNtfy(List<String> messages, String threadTitle) {
         try {
@@ -210,19 +210,28 @@ public class ForumNotifier {
             String url = "https://ntfy.sh/" + topic;
 
             StringBuilder body = new StringBuilder();
-            body.append("📬 הודעות חדשות באשכול: ")
-                    .append(threadTitle)
-                    .append("\n\n");
 
-            for (String msg : messages) {
-                String plain = msg.replaceAll("<[^>]+>", "");
-                body.append("• ").append(plain).append("\n\n");
+            // כותרת עליונה ברורה כמו "נושא מייל"
+            body.append("📬 **הודעות חדשות באשכול:** ").append(threadTitle).append("\n");
+            body.append("---\n\n");
+
+            int idx = 1;
+            for (String msgHtml : messages) {
+
+                // הפקת "מבנה" מתוך ה-HTML הקיים (בלי לשנות את ה-HTML למייל)
+                String formatted = formatMessageForNtfy(msgHtml);
+
+                body.append("### ").append(idx).append(") עדכון\n");
+                body.append(formatted).append("\n\n");
+                body.append("---\n\n");
+                idx++;
             }
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .header("Title", "New forum update")
                     .header("Priority", "4")
+                    .header("Tags", "speech_balloon") // תג קטלוגי באפליקציה (אם נתמך)
                     .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                     .build();
 
@@ -231,6 +240,73 @@ public class ForumNotifier {
 
         } catch (Exception e) {
             System.err.println("שגיאה בשליחת ntfy: " + e.getMessage());
+        }
+    }
+
+    // מדמה "כרטיסים" של מייל בעזרת Markdown + סמלים.
+    // שים לב: זה עובד על סמך הטקסטים/אמוג'ים שכבר הכנסת ל-HTML:
+    // 🌟 ציטוט מאת..., 🗨️ תגובה:, 🤐 ...:
+    private static String formatMessageForNtfy(String html) {
+        try {
+            // ממיר HTML לטקסט עם שימור שורות
+            Document d = Jsoup.parse(html);
+
+            // Jsoup כבר יוצר \n סביב block elements, אבל כדי להיות עקביים:
+            d.outputSettings(new Document.OutputSettings().prettyPrint(false));
+            String text = d.text();
+
+            // אם רוצים לשמר קצת שורות, ננסה "לשחזר" אזורים לפי הסמלים המובנים שלך:
+            // נייצר מבנה ידידותי:
+            // - אם יש "ציטוט מאת" → נציג כבלוק ציטוט Markdown
+            // - אם יש "תגובה:" → נציג כטקסט רגיל מסומן
+            // - אם יש "🤐" → נציג כקטע נפרד
+
+            StringBuilder out = new StringBuilder();
+
+            // חלוקה גסה לפי הסמלים ששמת
+            // זה לא משנה לוגיקה קיימת, רק מעצב את הפלט ל-ntfy.
+            String raw = html.replaceAll("(?i)<br\\s*/?>", "\n")
+                             .replaceAll("<[^>]+>", "")
+                             .replace("&nbsp;", " ")
+                             .trim();
+
+            // ננסה לזהות ציטוט
+            if (raw.contains("🌟") && raw.contains("ציטוט מאת")) {
+                // דוגמה לטקסט: "🌟 ציטוט מאת X: ... 🗨️ תגובה: ..."
+                // נפריד סביב "🗨️ תגובה:"
+                String[] parts = raw.split("🗨️\\s*תגובה:");
+                String quotePart = parts[0].trim();
+                String replyPart = parts.length > 1 ? parts[1].trim() : "";
+
+                // ניקוי כותרת הציטוט
+                // נשאיר את שם המצטט/ה כפי שמופיע בטקסט
+                out.append("↩️ **תגובה לציטוט**\n\n");
+                out.append("> ").append(quotePart.replace("\n", "\n> ")).append("\n\n");
+
+                if (!replyPart.isEmpty()) {
+                    out.append("🗨️ **תגובה:**\n");
+                    out.append(replyPart).append("\n");
+                }
+            } else {
+                // הודעה רגילה
+                out.append("🗨️ **הודעה:**\n");
+                out.append(raw).append("\n");
+            }
+
+            // זיהוי ספוילר/ים לפי "🤐"
+            // אם יש ספוילר, נציג אותו כבלוק מודגש (בלי צבעים)
+            if (raw.contains("🤐")) {
+                out.append("\n🤐 **ספוילר:**\n");
+                // אין לנו דרך להוציא בדיוק רק את התוכן בלי לשנות את המבנה המקורי,
+                // אבל לפחות זה מסמן לקורא שיש שם ספוילר.
+            }
+
+            return out.toString().trim();
+
+        } catch (Exception e) {
+            // fallback: טקסט נקי
+            String plain = html.replaceAll("<[^>]+>", "").trim();
+            return "🗨️ **הודעה:**\n" + plain;
         }
     }
 
