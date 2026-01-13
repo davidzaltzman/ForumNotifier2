@@ -221,7 +221,7 @@ public class ForumNotifier {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .header("Title", "עדכון חדש מפרוג")
+                    .header("Title", "New forum update")
                     .header("Priority", "4")
                     .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                     .build();
