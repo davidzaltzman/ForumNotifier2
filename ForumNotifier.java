@@ -43,7 +43,9 @@ public class ForumNotifier {
 
             List<ThreadConfig> threads = readThreads();
             if (threads.isEmpty()) {
-                sendEmail(Collections.singletonList("<div style='color: red; font-weight: bold;'>❌ הקובץ threads.txt ריק או לא תקין.</div>"), "תצורת אשכולות");
+                sendEmail(Collections.singletonList(
+                        "<div style='color: red; font-weight: bold;'>❌ הקובץ threads.txt ריק או לא תקין.</div>"
+                ), "תצורת אשכולות");
                 return;
             }
 
@@ -54,19 +56,30 @@ public class ForumNotifier {
 
                 int lastPage = getLastPage(client, thread.url);
                 if (lastPage == 1) {
-                    sendEmail(Collections.singletonList("<div style='color: red; font-weight: bold;'>❌ לא הצלחתי לתפוס את מספר העמוד מהאשכול: " + thread.title + "</div>"), thread.title);
+                    sendEmail(Collections.singletonList(
+                            "<div style='color: red; font-weight: bold;'>❌ לא הצלחתי לתפוס את מספר העמוד מהאשכול: "
+                                    + thread.title + "</div>"
+                    ), thread.title);
                     continue;
                 }
 
                 for (int i = lastPage - PAGES_TO_SCAN + 1; i <= lastPage; i++) {
                     String url = thread.url + "/page-" + i;
-                    HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().build();
-                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(new URI(url))
+                            .GET()
+                            .build();
+
+                    HttpResponse<String> response =
+                            client.send(request, HttpResponse.BodyHandlers.ofString());
 
                     if (response.statusCode() / 100 == 3) {
                         String newUrl = response.headers().firstValue("Location").orElse(null);
                         if (newUrl != null) {
-                            request = HttpRequest.newBuilder().uri(new URI(newUrl)).GET().build();
+                            request = HttpRequest.newBuilder()
+                                    .uri(new URI(newUrl))
+                                    .GET()
+                                    .build();
                             response = client.send(request, HttpResponse.BodyHandlers.ofString());
                         }
                     }
@@ -93,9 +106,9 @@ public class ForumNotifier {
                             continue;
                         }
 
-                        // ✅ סינון מס' 4: אם קיימת תגית עם class בשם "perek"
+                        // ✅ סינון מס' 4
                         if (!wrapper.select(".perek").isEmpty()) {
-                            continue; // הודעה עם תגית perek => פרסומת
+                            continue;
                         }
 
                         Element quote = wrapper.selectFirst("blockquote.bbCodeBlock--quote");
@@ -103,7 +116,6 @@ public class ForumNotifier {
                         boolean hasQuote = quote != null && replyExpand != null;
 
                         Elements spoilers = wrapper.select("div.bbCodeBlock.bbCodeBlock--spoiler");
-
                         StringBuilder messageBuilder = new StringBuilder();
 
                         if (hasQuote) {
@@ -114,8 +126,12 @@ public class ForumNotifier {
                             messageBuilder.append("<div style='border: 1px solid #99d6ff; border-radius: 10px; padding: 10px; margin-bottom: 10px; background: ")
                                     .append(thread.replyColor)
                                     .append(";'>")
-                                    .append("🌟 <b>ציטוט מאת</b> ").append(quoteAuthor).append(":<br>")
-                                    .append("<i>").append(quoteText.replaceAll("\\n", "<br>")).append("</i>")
+                                    .append("🌟 <b>ציטוט מאת</b> ")
+                                    .append(quoteAuthor)
+                                    .append(":<br>")
+                                    .append("<i>")
+                                    .append(quoteText.replaceAll("\\n", "<br>"))
+                                    .append("</i>")
                                     .append("</div>");
 
                             quote.remove();
@@ -156,8 +172,12 @@ public class ForumNotifier {
                                 messageBuilder.append("<div style='margin-top: 10px; background: ")
                                         .append(thread.spoilerColor)
                                         .append("; border: 1px solid #f5b7b1; padding: 10px; border-radius: 10px;'>")
-                                        .append("🤐 <b>").append(title).append(":</b><br>")
-                                        .append("<span style='color: #333;'>").append(content.replaceAll("\\n", "<br>")).append("</span>")
+                                        .append("🤐 <b>")
+                                        .append(title)
+                                        .append(":</b><br>")
+                                        .append("<span style='color: #333;'>")
+                                        .append(content.replaceAll("\\n", "<br>"))
+                                        .append("</span>")
                                         .append("</div>");
                             }
                         }
@@ -173,6 +193,7 @@ public class ForumNotifier {
                 if (!newMessages.isEmpty()) {
                     writeLatestMessages(allMessages);
                     sendEmail(newMessages, thread.title);
+                    sendNtfy(newMessages, thread.title); // ← תוספת בלבד
                 }
             }
 
@@ -180,6 +201,40 @@ public class ForumNotifier {
             e.printStackTrace();
         }
     }
+
+    /* ===================== NTFTY – תוספת ===================== */
+
+    private static void sendNtfy(List<String> messages, String threadTitle) {
+        try {
+            String topic = "forum";
+            String url = "https://ntfy.sh/" + topic;
+
+            StringBuilder body = new StringBuilder();
+            body.append("📬 הודעות חדשות באשכול: ")
+                    .append(threadTitle)
+                    .append("\n\n");
+
+            for (String msg : messages) {
+                String plain = msg.replaceAll("<[^>]+>", "");
+                body.append("• ").append(plain).append("\n\n");
+            }
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Title", "עדכון חדש מפרוג")
+                    .header("Priority", "4")
+                    .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                    .build();
+
+            HttpClient.newHttpClient()
+                    .send(request, HttpResponse.BodyHandlers.discarding());
+
+        } catch (Exception e) {
+            System.err.println("שגיאה בשליחת ntfy: " + e.getMessage());
+        }
+    }
+
+    /* ========================================================= */
 
     private static List<ThreadConfig> readThreads() {
         try {
@@ -194,15 +249,14 @@ public class ForumNotifier {
                 String[] parts = trimmed.split("\\|");
                 if (parts.length < 5) continue;
 
-                String title = parts[0].trim();
-                String url = parts[1].trim();
-                String messageColor = parts[2].trim();
-                String replyColor = parts[3].trim();
-                String spoilerColor = parts[4].trim();
-
-                threads.add(new ThreadConfig(title, url, messageColor, replyColor, spoilerColor));
+                threads.add(new ThreadConfig(
+                        parts[0].trim(),
+                        parts[1].trim(),
+                        parts[2].trim(),
+                        parts[3].trim(),
+                        parts[4].trim()
+                ));
             }
-
             return threads;
         } catch (IOException e) {
             return new ArrayList<>();
@@ -220,6 +274,7 @@ public class ForumNotifier {
     private static List<String> getNewMessages(List<String> allMessages) throws IOException {
         Set<String> previousMessages = new HashSet<>(readPreviousMessages());
         List<String> newMessages = new ArrayList<>();
+
         for (String message : allMessages) {
             String messageId = getMessageId(message);
             if (!previousMessages.contains(messageId)) {
@@ -234,12 +289,10 @@ public class ForumNotifier {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(message.getBytes());
             StringBuilder hexString = new StringBuilder();
-            for (byte b : hashBytes) {
-                hexString.append(String.format("%02x", b));
-            }
+            for (byte b : hashBytes) hexString.append(String.format("%02x", b));
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 לא נתמך במערכת", e);
+            throw new RuntimeException("SHA-256 לא נתמך", e);
         }
     }
 
@@ -247,6 +300,7 @@ public class ForumNotifier {
         try {
             List<String> existingIds = readPreviousMessages();
             List<String> newIds = new ArrayList<>();
+
             for (String message : messages) {
                 String id = getMessageId(message);
                 if (!existingIds.contains(id)) {
@@ -258,11 +312,15 @@ public class ForumNotifier {
             combined.addAll(newIds);
 
             int start = Math.max(0, combined.size() - MAX_STORED_MESSAGES);
-            List<String> trimmed = combined.subList(start, combined.size());
+            Files.write(
+                    Path.of(LAST_MESSAGE_FILE),
+                    combined.subList(start, combined.size()),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            );
 
-            Files.write(Path.of(LAST_MESSAGE_FILE), trimmed, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
-            System.err.println("שגיאה בכתיבת הקובץ: " + e.getMessage());
+            System.err.println("שגיאה בכתיבת last.txt: " + e.getMessage());
         }
     }
 
@@ -289,7 +347,9 @@ public class ForumNotifier {
             message.setRecipient(Message.RecipientType.TO, new InternetAddress(to));
             message.setSubject("📬 הודעה מאשכול " + threadTitle);
 
-            StringBuilder emailBody = new StringBuilder("<html><body style='font-family: Arial; direction: rtl;'>");
+            StringBuilder emailBody =
+                    new StringBuilder("<html><body style='font-family: Arial; direction: rtl;'>");
+
             for (String msg : messages) {
                 emailBody.append("<div style='border: 1px solid #ccc; border-radius: 10px; padding: 10px; margin-bottom: 15px;'>")
                         .append(msg)
@@ -299,7 +359,6 @@ public class ForumNotifier {
 
             message.setContent(emailBody.toString(), "text/html; charset=UTF-8");
             Transport.send(message);
-            System.out.println("המייל נשלח בהצלחה!");
 
         } catch (MessagingException e) {
             e.printStackTrace();
@@ -321,4 +380,3 @@ public class ForumNotifier {
         return 1;
     }
 }
-
