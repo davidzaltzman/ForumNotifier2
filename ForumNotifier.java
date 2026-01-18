@@ -325,6 +325,10 @@ public class ForumNotifier {
                 String[] parts = trimmed.split("\\|");
                 if (parts.length < 5) continue;
 
+                if (parts[0].trim().startsWith("[PAUSED]")) {
+                    continue; // מדלג על האשכול
+                }
+
                 threads.add(new ThreadConfig(
                         parts[0].trim(),
                         parts[1].trim(),
