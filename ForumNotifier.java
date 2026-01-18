@@ -194,6 +194,8 @@ public class ForumNotifier {
                     writeLatestMessages(allMessages);
                     sendEmail(newMessages, thread.title);
                     sendNtfy(newMessages, thread.title); // ← תוספת בלבד
+                    System.out.println("✅ המייל נשלח בהצלחה!");
+
                 }
             }
 
