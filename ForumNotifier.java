@@ -7,6 +7,7 @@ import java.io.*;
 import java.util.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -88,6 +89,13 @@ public class ForumNotifier {
                     Elements wrappers = doc.select("div.bbWrapper");
 
                     for (Element wrapper : wrappers) {
+                        
+                        Element messageArticle = wrapper.closest("article");
+                        if (messageArticle == null ||
+                                messageArticle.selectFirst("div.js-selectToQuoteEnd") == null) {
+                            continue;
+                        }
+
 
 //                        // ✅ סינון מס' 1
 //                        Element parent = wrapper.parent();
