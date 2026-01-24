@@ -90,18 +90,19 @@ public class ForumNotifier {
 
                     for (Element wrapper : wrappers) {
                         
-                        Element messageArticle = wrapper.closest("article");
-                        if (messageArticle == null ||
-                                messageArticle.selectFirst("div.js-selectToQuoteEnd") == null) {
-                            continue;
-                        }
+                        // סינון שונה מחליף את סינון 1 עבד יפה, משהה כי הסינון הרגיל גם עובד
+                        // Element messageArticle = wrapper.closest("article");
+                        // if (messageArticle == null ||
+                        //         messageArticle.selectFirst("div.js-selectToQuoteEnd") == null) {
+                        //     continue;
+                        // }
 
 
-//                        // ✅ סינון מס' 1
-//                        Element parent = wrapper.parent();
-//                        if (parent == null || !parent.is("article.message-body.js-selectToQuote")) {
-//                            continue;
-//                        }
+                       // ✅ סינון מס' 1
+                       Element parent = wrapper.parent();
+                       if (parent == null || !parent.is("article.message-body.js-selectToQuote")) {
+                           continue;
+                       }
 
                         // ✅ סינון מס' 2
                         if (wrapper.selectFirst("aside.message-signature") != null ||
