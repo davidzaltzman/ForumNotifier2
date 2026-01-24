@@ -89,11 +89,11 @@ public class ForumNotifier {
 
                     for (Element wrapper : wrappers) {
 
-                        // ✅ סינון מס' 1
-                        Element parent = wrapper.parent();
-                        if (parent == null || !parent.is("article.message-body.js-selectToQuote")) {
-                            continue;
-                        }
+//                        // ✅ סינון מס' 1
+//                        Element parent = wrapper.parent();
+//                        if (parent == null || !parent.is("article.message-body.js-selectToQuote")) {
+//                            continue;
+//                        }
 
                         // ✅ סינון מס' 2
                         if (wrapper.selectFirst("aside.message-signature") != null ||
@@ -268,9 +268,9 @@ public class ForumNotifier {
             // חלוקה גסה לפי הסמלים ששמת
             // זה לא משנה לוגיקה קיימת, רק מעצב את הפלט ל-ntfy.
             String raw = html.replaceAll("(?i)<br\\s*/?>", "\n")
-                             .replaceAll("<[^>]+>", "")
-                             .replace("&nbsp;", " ")
-                             .trim();
+                    .replaceAll("<[^>]+>", "")
+                    .replace("&nbsp;", " ")
+                    .trim();
 
             // ננסה לזהות ציטוט
             if (raw.contains("🌟") && raw.contains("ציטוט מאת")) {
