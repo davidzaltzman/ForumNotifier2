@@ -332,6 +332,8 @@ public class ForumNotifier {
                 String trimmed = line.trim();
                 if (trimmed.isEmpty()) continue;
                 if (!trimmed.contains("|")) continue;
+                // דלג על אשכולות בעצירה
+                if (trimmed.startsWith("[PAUSED]")) continue;
 
                 String[] parts = trimmed.split("\\|");
                 if (parts.length < 5) continue;
