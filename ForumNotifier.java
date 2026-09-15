@@ -457,17 +457,58 @@ public class ForumNotifier {
     }
 
     private static int getLastPage(HttpClient client, String baseThreadUrl) throws Exception {
-        String url = baseThreadUrl + "/page-9999";
-        HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    String url = baseThreadUrl + "/page-9999";
 
-        if (response.statusCode() / 100 == 3) {
-            String newUrl = response.headers().firstValue("Location").orElse(null);
-            if (newUrl != null) {
-                String[] parts = newUrl.split("page-");
-                return Integer.parseInt(parts[1].split("/")[0]);
+    System.out.println("========================================");
+    System.out.println("🔍 DEBUG - בדיקת גישה לפרוג");
+    System.out.println("URL: " + url);
+
+    HttpRequest request = HttpRequest.newBuilder()
+            .uri(new URI(url))
+            .GET()
+            .build();
+
+    HttpResponse<String> response =
+            client.send(request, HttpResponse.BodyHandlers.ofString());
+
+    System.out.println("HTTP STATUS: " + response.statusCode());
+    System.out.println("CONTENT-TYPE: " +
+            response.headers().firstValue("Content-Type").orElse("לא נמצא"));
+    System.out.println("LOCATION: " +
+            response.headers().firstValue("Location").orElse("אין"));
+
+    String body = response.body();
+
+    System.out.println("אורך התגובה: " + body.length());
+
+    System.out.println("----- תחילת התגובה -----");
+    System.out.println(body.substring(0, Math.min(1000, body.length())));
+    System.out.println("----- סוף תחילת התגובה -----");
+    System.out.println("========================================");
+
+    if (response.statusCode() / 100 == 3) {
+        String newUrl = response.headers().firstValue("Location").orElse(null);
+
+        if (newUrl != null) {
+            System.out.println("➡️ נמצאה הפניה ל: " + newUrl);
+
+            String[] parts = newUrl.split("page-");
+
+            if (parts.length > 1) {
+                String pagePart = parts[1].split("/")[0];
+
+                try {
+                    int page = Integer.parseInt(pagePart);
+                    System.out.println("✅ מספר העמוד שנמצא: " + page);
+                    return page;
+                } catch (NumberFormatException e) {
+                    System.out.println("❌ לא הצלחתי להפוך את מספר העמוד למספר: " + pagePart);
+                }
             }
         }
-        return 1;
     }
+
+    System.out.println("❌ לא נמצאה הפניה לעמוד האחרון - מחזיר 1");
+    return 1;
+}
 }
